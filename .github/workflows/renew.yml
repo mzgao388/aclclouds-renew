@@ -2,8 +2,9 @@ name: ACLClouds Auto-Renew
 
 on:
   schedule:
-    # Every 2 days at 00:00 UTC
-    - cron: '0 0 */2 * *'
+    # Daily — the free plan renews every 4 days and renewal opens 2 days
+    # before expiry, so a daily run guarantees the window is caught.
+    - cron: '17 3 * * *'
   workflow_dispatch:
 
 jobs:
@@ -18,11 +19,14 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install Playwright
-        run: |
-          npm init -y
-          npm install playwright
-          npx playwright install chromium --with-deps
+      - name: Install tesseract OCR (for the login captcha)
+        run: sudo apt-get update && sudo apt-get install -y tesseract-ocr
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright browser
+        run: npx playwright install chromium --with-deps
 
       - name: Run renew script
         env:
