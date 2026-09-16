@@ -4,7 +4,7 @@ on:
   schedule:
     # Daily — the free plan renews every 4 days and renewal opens 2 days
     # before expiry, so a daily run guarantees the window is caught.
-    - cron: '17 3 * * *'
+    - cron: '6 2 */2 * *'
   workflow_dispatch:
 
 jobs:
