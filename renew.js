@@ -5,7 +5,6 @@ const os = require('os');
 const path = require('path');
 const { execFile } = require('child_process');
 const { anonymizeProxy, closeAnonymizedProxy } = require('proxy-chain');
-const { HttpsProxyAgent } = require('https-proxy-agent');
 
 const EMAIL = process.env.ACL_EMAIL;
 const PASSWORD = process.env.ACL_PASSWORD;
@@ -260,7 +259,7 @@ async function clickAllRenewButtons(page) {
   if (PROXY_URL) {
     console.log('[0] Starting proxy tunnel...');
     localProxyUrl = await anonymizeProxy(PROXY_URL);
-    tgAgent = new HttpsProxyAgent(localProxyUrl);
+    tgAgent = new (require('https-proxy-agent').HttpsProxyAgent)(localProxyUrl);
     console.log(`  Proxy: ${localProxyUrl} (browser + Telegram notifications)`);
   }
 
@@ -278,7 +277,7 @@ async function clickAllRenewButtons(page) {
     if (!ok) {
       const shot = path.join(os.tmpdir(), 'acl_login_error.png');
       await page.screenshot({ path: shot, fullPage: true });
-      await notify('❌ ACLClouds login failed after 3 attempts (captcha or credentials)', shot);
+      await notify('❌ ACLClouds 登录失败：连续 3 次未通过验证码或账号密码不对，请检查 Secrets 或稍后重试', shot);
       throw new Error('Login failed');
     }
     console.log('[OK] Logged in!');
@@ -286,7 +285,7 @@ async function clickAllRenewButtons(page) {
 
     let servers = await fetchServers(page);
     if (!servers.length) {
-      await notify('⚠️ ACLClouds: logged in but /api/client returned no servers');
+      await notify('⚠️ ACLClouds：登录成功，但 /api/client 没有返回任何服务器');
       throw new Error('No servers returned by /api/client');
     }
     const before = new Map(servers.map(s => [s.identifier, s.can_renew]));
@@ -301,14 +300,19 @@ async function clickAllRenewButtons(page) {
     }
 
     const fmt = (iso) => iso ? new Date(iso).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) : '?';
+    const left = (iso) => {
+      if (!iso) return '?';
+      const ms = new Date(iso) - Date.now();
+      return `${Math.floor(ms / 86400000)}天${Math.floor((ms % 86400000) / 3600000)}小时`;
+    };
     const now = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
     const lines = servers.map(s => {
       const exp = fmt(s.expires_at);
-      if (before.get(s.identifier) && !s.can_renew) return `✅ ${s.name}: renewed! New expiry: ${exp}`;
-      if (s.can_renew) return `⚠️ ${s.name}: renewal available but button not found — manual action needed (expires ${exp})`;
-      return `⏳ ${s.name}: not available yet (expires ${exp} — opens 2 days before expiry)`;
+      if (before.get(s.identifier) && !s.can_renew) return `✅ ${s.name}：续期成功！新到期时间：${exp}`;
+      if (s.can_renew) return `⚠️ ${s.name}：续期已开放但没找到续期按钮，请手动处理（剩余 ${left(s.expires_at)}，到期：${exp}）`;
+      return `⏳ ${s.name}：还没到续期时间（剩余 ${left(s.expires_at)}，到期：${exp}；到期前 2 天开放）`;
     });
-    await notify(`☁️ <b>ACLClouds Auto-Renew</b>\n⏰ ${now}\n\n${lines.join('\n')}`);
+    await notify(`☁️ <b>ACLClouds 自动续期</b>\n⏰ ${now}\n\n${lines.join('\n')}`);
     console.log('=== Summary ===');
     lines.forEach(l => console.log(l));
     console.log('=== Done ===');
@@ -317,7 +321,7 @@ async function clickAllRenewButtons(page) {
     try {
       const shot = path.join(os.tmpdir(), 'acl_error.png');
       await page.screenshot({ path: shot, fullPage: true });
-      await notify('❌ ACLClouds renew error: ' + err.message, shot);
+      await notify('❌ ACLClouds 自动续期出错：' + err.message, shot);
     } catch {}
     process.exitCode = 1;
   } finally {
