@@ -15,16 +15,11 @@
 2. 在仓库 Settings → Secrets and variables → Actions 中添加：
    - `ACL_EMAIL` — 你的 ACLClouds 邮箱
    - `ACL_PASSWORD` — 你的 ACLClouds 密码
+   - `TG_BOT_TOKEN` — 你的 Telegram TOKEN
+   - `TG_CHAT_ID` — 你的 Telegram ID
+   - `PROXY_URL` — 代理节点
 3. Workflow 会每2天自动运行一次
 
 ## 手动触发
 
 在 GitHub Actions 页面点击 "Run workflow" 即可手动运行。
-
-## 本地测试
-
-```bash
-npm install
-npx playwright install chromium
-ACL_EMAIL="your@email.com" ACL_PASSWORD="yourpass" node renew.js
-```
